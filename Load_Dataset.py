@@ -10,8 +10,9 @@ from typing import Callable
 import os
 import cv2
 from scipy import ndimage
-from bert_embedding import BertEmbedding
-
+# from bert_embedding import BertEmbedding
+from transformers import BertTokenizer, BertModel
+import torch.nn.functional as F
 
 def random_rot_flip(image, label):
     k = np.random.randint(0, 4)
@@ -105,7 +106,18 @@ class LV2D(Dataset):
         self.one_hot_mask = one_hot_mask
         self.rowtext = row_text
         self.task_name = task_name
-        self.bert_embedding = BertEmbedding()
+        # self.bert_embedding = BertEmbedding()
+        bert_local_path = r"E:\Learning_Documents\Computer_Vision_and_Intelligent_Medical_Image_Analysis\BIG_HOMEWORK\LVIT-main\bert-base-uncased"  # 您的本地路径
+        self.tokenizer = BertTokenizer.from_pretrained(
+            bert_local_path,
+            local_files_only=True
+        )
+        self.bert_model = BertModel.from_pretrained(
+            bert_local_path,
+            local_files_only=True,
+            use_safetensors=True
+        )
+        self.bert_model.eval()
 
         if joint_transform:
             self.joint_transform = joint_transform
@@ -124,17 +136,45 @@ class LV2D(Dataset):
         mask[mask <= 0] = 0
         mask[mask > 0] = 1
         mask = correct_dims(mask)
-        text = self.rowtext[mask_filename]
-        text = text.split('\n')
-        text_token = self.bert_embedding(text)
-        text = np.array(text_token[0][1])
-        if text.shape[0] > 14:
-            text = text[:14, :]
+
+        # text = self.rowtext[mask_filename]
+        # text = text.split('\n')
+        # text_token = self.bert_embedding(text)
+        # text = np.array(text_token[0][1])
+        # if text.shape[0] > 14:
+        #     text = text[:14, :]
+
+        text = self.rowtext.get(mask_filename, "")
+        # inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        # with torch.no_grad():
+        #     outputs = self.bert_model(**inputs)
+
+        try:
+            inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding='max_length', max_length=14)
+            with torch.no_grad():
+                outputs = self.bert_model(**inputs)
+            embedding = outputs.last_hidden_state.mean(dim=1).squeeze().cpu().numpy()
+        except Exception as e:
+            print(f"文本处理出错: {str(e)}，使用零向量代替")
+            embedding = np.random.normal(0, 0.01, (768,))  # 保持维度一致
+
+        # embedding = outputs.last_hidden_state.squeeze(0).cpu().numpy()
+        # max_len = 14
+        # if embedding.shape[0] > max_len:
+        #     embedding = embedding[:max_len]
+        # else:
+        #     embedding = np.pad(embedding, ((0, max_len - embedding.shape[0]), (0, 0)), mode='constant')
+        # text = embedding.astype(np.float32)
+        if len(embedding.shape) == 1:
+            embedding = np.tile(embedding, (14, 1))
+
+        text_embedding = embedding.astype(np.float32)
+
         if self.one_hot_mask:
             assert self.one_hot_mask > 0, 'one_hot_mask must be nonnegative'
             mask = torch.zeros((self.one_hot_mask, mask.shape[1], mask.shape[2])).scatter_(0, mask.long(), 1)
 
-        sample = {'label': mask, 'text': text}
+        sample = {'label': mask, 'text': text_embedding}
 
         return sample, mask_filename
 
@@ -153,7 +193,19 @@ class ImageToImage2D(Dataset):
         self.one_hot_mask = one_hot_mask
         self.rowtext = row_text
         self.task_name = task_name
-        self.bert_embedding = BertEmbedding()
+        # self.bert_embedding = BertEmbedding()
+
+        bert_local_path = r"E:\Learning_Documents\Computer_Vision_and_Intelligent_Medical_Image_Analysis\BIG_HOMEWORK\LVIT-main\bert-base-uncased"  # 您的本地路径
+        self.tokenizer = BertTokenizer.from_pretrained(
+            bert_local_path,
+            local_files_only=True
+        )
+        self.bert_model = BertModel.from_pretrained(
+            bert_local_path,
+            local_files_only=True,
+            use_safetensors=True
+        )
+        self.bert_model.eval()
 
         if joint_transform:
             self.joint_transform = joint_transform
@@ -196,15 +248,54 @@ class ImageToImage2D(Dataset):
                 image, mask = correct_dims(image, mask)
 
                 # 文本处理（添加容错）
-                text = self.rowtext.get(mask_filename, "")  # 使用get避免KeyError
-                text = text.split('\n')
-                text_token = self.bert_embedding(text) if text else [None]
-                text_embedding = np.array(text_token[0][1]) if text_token and text_token[0][
-                    1] is not None else np.zeros((10, 768))
-                if text_embedding.shape[0] > 10:
-                    text_embedding = text_embedding[:10, :]
+                text = self.rowtext.get(mask_filename, "").strip()  # 使用get避免KeyError
+                try:
+                    inputs = self.tokenizer(text,
+                                            return_tensors="pt",
+                                            truncation=True,
+                                            padding='max_length',
+                                            max_length=10)  # 与max_len一致
+                    with torch.no_grad():
+                        outputs = self.bert_model(**inputs)
+                    # 使用[CLS]标记作为embedding
+                    embedding = outputs.last_hidden_state[:, 0, :].squeeze().cpu().numpy()
+                except Exception as e:
+                    print(f"文本处理出错: {str(e)}，使用随机向量代替")
+                    embedding = np.random.normal(0, 0.01, (768,))
+                # if text:
+                #     # inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+                #     # with torch.no_grad():
+                #     #     outputs = self.bert_model(**inputs)
+                #     try:
+                #         inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True,
+                #                                 max_length=512)
+                #         with torch.no_grad():
+                #             outputs = self.bert_model(**inputs)
+                #         embedding = outputs.last_hidden_state.squeeze(0).cpu().numpy()
+                #     except Exception as e:
+                #         print(f"文本处理出错: {str(e)}，使用零向量代替")
+                #         embedding = np.zeros((10, 768), dtype=np.float32)  # 保持维度一致
+                #     embedding = outputs.last_hidden_state.squeeze(0).cpu().numpy()
+                #     max_len = 10
+                #     if embedding.shape[0] > max_len:
+                #         embedding = embedding[:max_len]
+                #     else:
+                #         embedding = np.pad(embedding, ((0, max_len - embedding.shape[0]), (0, 0)), mode='constant')
+                # else:
+                #     embedding = np.zeros((10, 768), dtype=np.float32)
+                # text_embedding = embedding.astype(np.float32)
+                # # text = text.split('\n')
+                # # text_token = self.bert_embedding(text) if text else [None]
+                # # text_embedding = np.array(text_token[0][1]) if text_token and text_token[0][
+                # #     1] is not None else np.zeros((10, 768))
+                # # if text_embedding.shape[0] > 10:
+                # #     text_embedding = text_embedding[:10, :]
 
                 # 准备样本
+                if len(embedding.shape) == 1:
+                    embedding = np.tile(embedding, (10, 1))
+
+                text_embedding = embedding.astype(np.float32)
                 sample = {'image': image, 'label': mask, 'text': text_embedding}
                 if self.joint_transform:
                     sample = self.joint_transform(sample)

@@ -4,6 +4,8 @@ import torch.nn as nn
 import time
 from tensorboardX import SummaryWriter
 import os
+os.environ["TRANSFORMERS_OFFLINE"] = "1"  # 强制使用本地文件
+os.environ["HF_DATASETS_OFFLINE"] = "1"   # 禁用数据集下载
 import numpy as np
 import random
 from torch.backends import cudnn
@@ -19,8 +21,9 @@ from utils import CosineAnnealingWarmRestarts, WeightedDiceBCE, WeightedDiceCE, 
 from thop import profile
 import wandb
 #########epoch在config文件里
-wandb_api_key = "e5f489cda141460127bb03a3b2c5e7b3b990b83d"
+wandb_api_key = "58b3bf476bcf45c6a02591cdd2dc4f058d3f922d"
 wandb.login(key=wandb_api_key)
+
 def logger_config(log_path):
     loggerr = logging.getLogger()
     loggerr.setLevel(level=logging.INFO)
@@ -70,7 +73,8 @@ def worker_init_fn(worker_id):
 def main_loop(batch_size=config.batch_size, model_type='', tensorboard=True):
     # 初始化 wandb
     wandb.init(
-        project="your-project-name",  # 项目名称（在 wandb.ai 创建）
+        mode="disabled",
+        project="LViT",  # 项目名称（在 wandb.ai 创建）
         name=f"{config.model_name}-{config.task_name}",  # 实验名称
         config={
             "learning_rate": config.learning_rate,

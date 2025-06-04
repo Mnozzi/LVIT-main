@@ -1,0 +1,9 @@
+LViT
+transformer head num: 4
+transformer layers num: 4
+transformer expand ratio: 4
+log dir: 
+
+========= Epoch [1/2001] =========
+Test_session_06.03_21h21
+Training with batch size : 2
