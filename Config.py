@@ -15,7 +15,7 @@ os.environ['PYTHONHASHSEED'] = str(seed)
 cosineLR = True  # Use cosineLR or not
 n_channels = 3
 n_labels = 1  # MoNuSeg & Covid19
-epochs = 2000
+epochs = 500
 img_size = 224
 print_frequency = 1
 save_frequency = 5000
@@ -24,9 +24,12 @@ early_stopping_patience = 50
 
 pretrain = False
 task_name = 'MosMedDataPlus'
-# task_name = 'Covid19'
-learning_rate = 1e-3  # MoNuSeg: 1e-3, Covid19: 3e-4
-batch_size = 2  # For LViT-T, 2 is better than 4
+#task_name = 'MoNuSeg'
+
+#根据平方根缩放规则，1e-3 * (24 / 6)**0.5 ≈ 2e-3
+learning_rate = 1e-3  # MosMedDataPlus: 1e-3, Covid19: 3e-4
+#######这里的batch要根据具体配置来改
+batch_size = 24  # For LViT-T, 2 is better than 4
 
 model_name = 'LViT'
 # model_name = 'LViT_pretrain'
@@ -63,4 +66,4 @@ def get_CTranS_config():
 
 
 # used in testing phase, copy the session name in training phase
-test_session = "Test_session_05.23_12h08"  # dice=79.98, IoU=66.83
+test_session = "Test_session_06.05_17h16"  # dice=79.98, IoU=66.83

@@ -17,7 +17,7 @@ import logging
 from Train_one_epoch import train_one_epoch, print_summary
 import Config as config
 from torchvision import transforms
-from utils import CosineAnnealingWarmRestarts, WeightedDiceBCE, WeightedDiceCE, read_text, read_text_LV, save_on_batch
+from utils import CosineAnnealingWarmRestarts, WeightedDiceBCE, WeightedDiceCE, read_text, read_text_LV, save_on_batch, get_weight_decay_params
 from thop import profile
 import wandb
 #########epoch在config文件里
@@ -152,7 +152,13 @@ def main_loop(batch_size=config.batch_size, model_type='', tensorboard=True):
         print("Let's use {0} GPUs!".format(torch.cuda.device_count()))
         model = nn.DataParallel(model)
     criterion = WeightedDiceBCE(dice_weight=0.5, BCE_weight=0.5)
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)  # Choose optimize
+    
+    # 6/5 L2正则化中的自定义权重衰减########
+    optimizer = torch.optim.AdamW(
+        get_weight_decay_params(model, weight_decay=0.01),
+        lr=lr
+    )
+    
     if config.cosineLR is True:
         lr_scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1, eta_min=1e-4)
     else:
