@@ -70,15 +70,15 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     test_session = config.test_session
 
-    if config.task_name == "MosMedDataPlus":
+    if config.task_name == "MoNuSeg":
         test_num = 14
         model_type = config.model_name
-        model_path = "./MosMedDataPlus/" + model_type + "/" + test_session + "/models/best_model-" + model_type + ".pth.tar"
+        model_path = "./MoNuSeg/" + model_type + "/" + test_session + "/models/best_model-" + model_type + ".pth.tar"
 
-    elif config.task_name == "Covid19":
-        test_num = 2113
+    elif config.task_name == "MosMedDataPlus":
+        test_num = 273
         model_type = config.model_name
-        model_path = "./Covid19/" + model_type + "/" + test_session + "/models/best_model-" + model_type + ".pth.tar"
+        model_path = "./MosMedDataPlus/" + model_type + "/" + test_session + "/models/best_model-" + model_type + ".pth.tar"
     
     save_path = config.task_name + '/' + model_type + '/' + test_session + '/'
     vis_path = "./" + config.task_name + '_visualize_test/'
