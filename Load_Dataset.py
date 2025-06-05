@@ -12,7 +12,6 @@ import cv2
 from scipy import ndimage
 # from bert_embedding import BertEmbedding
 from transformers import BertTokenizer, BertModel
-import torch.nn.functional as F
 
 def random_rot_flip(image, label):
     k = np.random.randint(0, 4)
