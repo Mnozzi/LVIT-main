@@ -572,3 +572,30 @@ def img_similarity_vectors_via_numpy(image1, image2):
     a_norm, b_norm = norms
     res = dot(a / a_norm, b / b_norm)
     return res
+
+
+####6/5 L2正则化
+def get_weight_decay_params(model, weight_decay=0.01):
+    """
+    为不同层设置不同的权重衰减
+    """
+    decay_params = []
+    no_decay_params = []
+
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+
+        # 对不同类型的层使用不同的权重衰减
+        if len(param.shape) == 1 or name.endswith(".bias"):
+            # 偏置项和BatchNorm参数不使用权重衰减
+            no_decay_params.append(param)
+        else:
+            # 其他参数使用权重衰减
+            decay_params.append(param)
+
+    return [
+        {'params': decay_params, 'weight_decay': weight_decay},
+        {'params': no_decay_params, 'weight_decay': 0.0}
+    ]
+
