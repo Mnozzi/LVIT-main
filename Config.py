@@ -27,7 +27,7 @@ task_name = 'MosMedDataPlus'
 #task_name = 'MoNuSeg'
 
 #根据平方根缩放规则，1e-3 * (24 / 6)**0.5 ≈ 2e-3
-learning_rate = 1e-3  # MosMedDataPlus: 1e-3, Covid19: 3e-4
+learning_rate = 3e-4  # MosMedDataPlus: 1e-3, Covid19: 3e-4
 #######这里的batch要根据具体配置来改
 batch_size = 24  # For LViT-T, 2 is better than 4
 
@@ -66,4 +66,4 @@ def get_CTranS_config():
 
 
 # used in testing phase, copy the session name in training phase
-test_session = "Test_session_06.05_17h16"  # dice=79.98, IoU=66.83
+test_session = "Test_session_06.09_17h58"  # dice=79.98, IoU=66.83

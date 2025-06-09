@@ -4,8 +4,10 @@ import torch.nn as nn
 import time
 from tensorboardX import SummaryWriter
 import os
+
+
 os.environ["TRANSFORMERS_OFFLINE"] = "1"  # 强制使用本地文件
-os.environ["HF_DATASETS_OFFLINE"] = "1"   # 禁用数据集下载
+os.environ["HF_DATASETS_OFFLINE"] = "1"  # 禁用数据集下载
 import numpy as np
 import random
 from torch.backends import cudnn
@@ -17,12 +19,15 @@ import logging
 from Train_one_epoch import train_one_epoch, print_summary
 import Config as config
 from torchvision import transforms
-from utils import CosineAnnealingWarmRestarts, WeightedDiceBCE, WeightedDiceCE, read_text, read_text_LV, save_on_batch, get_weight_decay_params
+from utils import CosineAnnealingWarmRestarts, WeightedDiceBCE, WeightedDiceCE, read_text, read_text_LV, save_on_batch, \
+    get_weight_decay_params
 from thop import profile
 import wandb
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
 #########epoch在config文件里
-#wandb_api_key = "e5f489cda141460127bb03a3b2c5e7b3b990b83d"
-#wandb.login(key=wandb_api_key)
+# wandb_api_key = "e5f489cda141460127bb03a3b2c5e7b3b990b83d"
+# wandb.login(key=wandb_api_key)
 
 def logger_config(log_path):
     loggerr = logging.getLogger()
@@ -99,7 +104,6 @@ def main_loop(batch_size=config.batch_size, model_type='', tensorboard=True):
                                        image_size=config.img_size)
         val_dataset = ImageToImage2D(config.val_dataset, config.task_name, text, val_tf, image_size=config.img_size)
 
-
     train_loader = DataLoader(train_dataset,
                               batch_size=config.batch_size,
                               shuffle=True,
@@ -113,7 +117,7 @@ def main_loop(batch_size=config.batch_size, model_type='', tensorboard=True):
                             worker_init_fn=worker_init_fn,
                             num_workers=8,
                             pin_memory=True)
-                             
+
     lr = config.learning_rate
     logger.info(model_type)
 
@@ -144,7 +148,7 @@ def main_loop(batch_size=config.batch_size, model_type='', tensorboard=True):
         raise TypeError('Please enter a valid name for the model type')
     input = torch.randn(2, 3, 224, 224)
     text = torch.randn(2, 10, 768)
-    flops, params = profile(model, inputs=(input, text, ))
+    flops, params = profile(model, inputs=(input, text,))
     print('flops:{}'.format(flops))
     print('params:{}'.format(params))
     model = model.cuda()
@@ -152,15 +156,16 @@ def main_loop(batch_size=config.batch_size, model_type='', tensorboard=True):
         print("Let's use {0} GPUs!".format(torch.cuda.device_count()))
         model = nn.DataParallel(model)
     criterion = WeightedDiceBCE(dice_weight=0.5, BCE_weight=0.5)
-    
+
     # 6/5 L2正则化中的自定义权重衰减########
     optimizer = torch.optim.AdamW(
         get_weight_decay_params(model, weight_decay=0.01),
         lr=lr
     )
-    
+    #############6/9 这里禁用了原utils函数中的CosineAnnealingWarmRestarts
+    #############改用pytorch中自带的CosineAnnealingLR
     if config.cosineLR is True:
-        lr_scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=1, eta_min=1e-4)
+        lr_scheduler = CosineAnnealingLR(optimizer,T_max=150, eta_min=1e-6)
     else:
         lr_scheduler = None
     if tensorboard:

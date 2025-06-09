@@ -23,11 +23,10 @@ class WeightedBCE(nn.Module):
         self.weights = weights
 
     def forward(self, logit_pixel, truth_pixel):
-        # print("====",logit_pixel.size())
-        logit = logit_pixel.view(-1)
-        truth = truth_pixel.view(-1)
+        logit = logit_pixel.view(-1).float()
+        truth = truth_pixel.view(-1).float()
         assert (logit.shape == truth.shape)
-        loss = F.binary_cross_entropy(logit, truth, reduction='none')
+        loss = F.binary_cross_entropy_with_logits(logit, truth, reduction='none')
         pos = (truth > 0.5).float()
         neg = (truth < 0.5).float()
         pos_weight = pos.sum().item() + 1e-12
@@ -195,6 +194,10 @@ class WeightedDiceBCE(nn.Module):
         self.dice_weight = dice_weight
 
     def _show_dice(self, inputs, targets):
+        # 确保输入是浮点类型
+        inputs = inputs.float()
+        targets = targets.float()
+
         inputs[inputs >= 0.5] = 1
         inputs[inputs < 0.5] = 0
         targets[targets > 0] = 1
@@ -203,10 +206,13 @@ class WeightedDiceBCE(nn.Module):
         return hard_dice_coeff
 
     def forward(self, inputs, targets):
+        # 确保输入是浮点类型
+        inputs = inputs.float()
+        targets = targets.float()
+
         dice = self.dice_loss(inputs, targets)
         BCE = self.BCE_loss(inputs, targets)
         dice_BCE_loss = self.dice_weight * dice + self.BCE_weight * BCE
-
         return dice_BCE_loss
 
 
@@ -574,7 +580,7 @@ def img_similarity_vectors_via_numpy(image1, image2):
     return res
 
 
-####6/5 L2正则化
+#####6/5 加入了L2正则化中的权重衰减
 def get_weight_decay_params(model, weight_decay=0.01):
     """
     为不同层设置不同的权重衰减
